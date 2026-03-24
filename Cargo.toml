@@ -1,0 +1,17 @@
+[package]
+name = "project_code_extractor"
+version = "0.1.0"
+edition = "2024"
+description = "Extract project source files into a single shareable document while respecting ignore rules"
+license = "Apache-2.0"
+repository = "https://github.com/ArslanIbragimov/ProjectCodeExtractor"
+
+[dependencies]
+anyhow = "1.0"
+arboard = "3.6"
+clap = { version = "4.5", features = ["derive"] }
+content_inspector = "0.2"
+ignore = "0.4"
+
+[dev-dependencies]
+tempfile = "3.15"

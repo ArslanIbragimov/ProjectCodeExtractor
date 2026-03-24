@@ -1,85 +1,125 @@
 # ProjectCodeExtractor
 
-## Overview
+`ProjectCodeExtractor` is now a Rust CLI application that flattens a project into one shareable text bundle while respecting `.gitignore` and `excluded_files.txt`.
 
-`ProjectCodeExtractor` is a Python script that recursively copies the contents of all files in a specified project directory, while ignoring files and directories specified in `.gitignore` and `excluded_files.txt`. The extracted content is then copied to the clipboard for easy access and sharing.
+## What Changed
+
+- Rewritten from a single Python script into a structured Rust application.
+- Added a real CLI with file, stdout, and clipboard output modes.
+- Replaced ad-hoc ignore matching with `ignore`, so `.gitignore` handling is much closer to real Git behavior.
+- Added binary-file detection, deterministic ordering, and automated tests.
+- Split responsibilities into focused modules instead of one large script.
 
 ## Features
 
-- **Recursive Extraction**: Recursively walks through the project directory to extract code from all files.
-- **Exclusion Support**: Supports exclusion patterns from `.gitignore` and `excluded_files.txt`.
-- **Hidden Files/Directories Ignored**: Automatically ignores hidden files and directories.
-- **Clipboard Integration**: Copies the formatted content directly to the clipboard using `pyperclip`.
+- Recursively walks a project directory.
+- Respects `.gitignore` and `excluded_files.txt`.
+- Skips hidden files and directories by default.
+- Skips binary files automatically.
+- Copies the extracted bundle to the system clipboard by default.
+- Can also write the bundle to a file or print it to stdout.
 
 ## Requirements
 
-- Python 3.6+
-- `pyperclip` library
+- Rust 1.85+ recommended
+- Cargo
 
-Install the required library using pip:
+## Build
 
 ```bash
-pip install pyperclip
+cargo build --release
 ```
+
+The binary will be available at `target/release/project_code_extractor`.
 
 ## Usage
-### Clone the Repository:
-git clone https://github.com/yourusername/ProjectCodeExtractor.git
 
-cd ProjectCodeExtractor
+Copy the extracted project bundle to the clipboard:
 
-### Prepare Your Project Directory:
-Ensure you have .gitignore and excluded_files.txt in your project directory with appropriate patterns to exclude files and directories.
-
-### Run the Script:
-python projcode.py
-
-You will be prompted to enter the path to your project directory.
-
-### Check the Clipboard:
-  
-The script will copy the extracted code content to your clipboard, which you can then paste wherever needed.
-
-## Exclusion Patterns
-
-- **.gitignore: This file should contain patterns for files and directories you want to exclude from extraction.**
-- **excluded_files.txt: This file should also contain patterns for files and directories to be excluded. Both files follow the same pattern matching rules as .gitignore.**
-
-Example file:
-
-```
-# Ignore all log files
-*.log
+```bash
+cargo run -- /path/to/project
 ```
 
-```
-# Ignore node_modules directory
-node_modules/
-Example excluded_files.txt
+Write the bundle to a file:
+
+```bash
+cargo run -- /path/to/project --output extracted.txt --no-clipboard
 ```
 
+Print the bundle to stdout:
+
+```bash
+cargo run -- /path/to/project --stdout --no-clipboard
 ```
-# Ignore all markdown files
+
+Include hidden files and directories:
+
+```bash
+cargo run -- /path/to/project --include-hidden
+```
+
+Show verbose skip messages:
+
+```bash
+cargo run -- /path/to/project --verbose
+```
+
+## CLI Options
+
+```text
+project-code-extractor [PATH]
+
+Arguments:
+  [PATH]                     Project directory to scan. Defaults to the current directory
+
+Options:
+  -o, --output <FILE>        Write the extracted bundle to a file
+      --stdout               Print the extracted bundle to stdout
+      --no-clipboard         Do not copy the bundle to the clipboard
+      --include-hidden       Include hidden files and directories
+      --excluded-file-name   Additional ignore-file name to load alongside .gitignore
+  -v, --verbose              Print non-fatal skip details to stderr
+  -h, --help                 Print help
+  -V, --version              Print version
+```
+
+## Ignore Rules
+
+The extractor reads:
+
+- `.gitignore`
+- `excluded_files.txt`
+
+Example `excluded_files.txt`:
+
+```text
 *.md
+tmp/
+coverage/
 ```
 
+## Development
+
+Format the code:
+
+```bash
+cargo fmt
 ```
-# Ignore temp directory
-temp/
+
+Run tests:
+
+```bash
+cargo test
 ```
 
-## Useful Tips and Applications
-### Code Review: **Quickly gather all code for a review session and share it via clipboard.**
-### Documentation: **Easily extract code snippets to include in your documentation.**
-### Backup: **Extract and store important code segments without version control.**
-### Migration: **Prepare code segments for migrating to a new project or repository.**
-### Generative AI Tools: **Use this script to gather code snippets for training or querying generative neural networks.**
-### Stack Overflow Questions: **Simplify the process of collecting and sharing relevant code snippets when asking or answering questions on Stack Overflow.**
+## Architecture
 
-Contributing
-Feel free to submit issues and pull requests. For major changes, please open an issue first to discuss what you would like to change.
+- `src/cli.rs`: CLI parsing and command-line contract
+- `src/extractor.rs`: directory walking, ignore handling, binary detection
+- `src/formatter.rs`: stable output rendering
+- `src/clipboard.rs`: clipboard integration
+- `src/lib.rs`: application orchestration
 
-License
-Distributed under the Apache 2.0 License. See LICENSE for more information.
+## License
 
-By following the above instructions and utilizing the provided features, you can make the most out of the ProjectCodeExtractor script. Happy coding!
+Distributed under the Apache 2.0 License. See [LICENSE](LICENSE).
