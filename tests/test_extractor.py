@@ -333,8 +333,9 @@ def test_clipboard_verification_failure_raises_error(tmp_path, monkeypatch):
         ProjectCodeExtractor(tmp_path).save_to_clipboard("expected content")
 
 
-def test_invalid_additional_exclusion_pattern_raises_clear_error(tmp_path):
-    extractor = ProjectCodeExtractor(tmp_path, additional_exclude_patterns=["\\"])
+@pytest.mark.parametrize("pattern", ["\\", "[z-a].txt"])
+def test_invalid_additional_exclusion_pattern_raises_clear_error(tmp_path, pattern):
+    extractor = ProjectCodeExtractor(tmp_path, additional_exclude_patterns=[pattern])
 
     with pytest.raises(ValueError, match="Invalid additional exclusion pattern"):
         extractor.extract_code()

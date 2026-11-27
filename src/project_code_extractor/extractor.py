@@ -393,7 +393,7 @@ class ProjectCodeExtractor:
                 additional_spec = GitIgnoreSpec.from_lines(
                     self.additional_exclude_patterns
                 )
-            except ValueError as exc:
+            except (ValueError, re.error) as exc:
                 raise ValueError(
                     f"Invalid additional exclusion pattern: {exc}"
                 ) from exc
