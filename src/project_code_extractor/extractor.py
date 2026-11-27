@@ -437,6 +437,8 @@ class ProjectCodeExtractor:
         return f"{base}/{name}" if base else name
 
     def _display_path(self, path: Path) -> str:
+        if not path.is_absolute():
+            return path.as_posix()
         try:
             return path.resolve().relative_to(self.project_path).as_posix()
         except (OSError, ValueError):

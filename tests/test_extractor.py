@@ -33,6 +33,17 @@ def test_extracts_text_files_in_deterministic_order(tmp_path):
     assert result.skipped_files == ()
 
 
+def test_output_headings_do_not_depend_on_current_directory(tmp_path, monkeypatch):
+    write_file(tmp_path, "a.py", "print('a')\n")
+    (tmp_path / "sub").mkdir()
+    monkeypatch.chdir(tmp_path / "sub")
+
+    result = ProjectCodeExtractor(tmp_path).extract_code()
+
+    assert "a.py:\n\nprint('a')" in result.content
+    assert "sub/a.py:" not in result.content
+
+
 def test_root_gitignore_uses_git_wildmatch_semantics(tmp_path):
     write_file(
         tmp_path,
