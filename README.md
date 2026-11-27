@@ -1,85 +1,226 @@
 # ProjectCodeExtractor
 
-## Overview
-
-`ProjectCodeExtractor` is a Python script that recursively copies the contents of all files in a specified project directory, while ignoring files and directories specified in `.gitignore` and `excluded_files.txt`. The extracted content is then copied to the clipboard for easy access and sharing.
+ProjectCodeExtractor is a Python command-line tool that collects the text files in a project into one document. The result can be copied to the clipboard, written to a file, or printed to stdout, making it useful for code review, documentation, migration, and sharing project context with AI tools.
 
 ## Features
 
-- **Recursive Extraction**: Recursively walks through the project directory to extract code from all files.
-- **Exclusion Support**: Supports exclusion patterns from `.gitignore` and `excluded_files.txt`.
-- **Hidden Files/Directories Ignored**: Automatically ignores hidden files and directories.
-- **Clipboard Integration**: Copies the formatted content directly to the clipboard using `pyperclip`.
+- **Accurate `.gitignore` support**: uses gitwildmatch semantics, including nested `.gitignore` files, negation patterns, directory-only patterns, anchored patterns, and `**`.
+- **Additional exclusions**: supports `excluded_files.txt`, repeated `--exclude` patterns, and repeated `--exclude-file` files.
+- **Flexible output**: copy to the clipboard, write to a file, print to stdout, or combine destinations. Clipboard writes are verified so broken clipboard backends do not fail silently.
+- **Text or Markdown output**: Markdown output uses per-file headings, syntax-language hints, and safe code fences.
+- **Safe defaults**: skips hidden files, `.git`, binary files, invalid-text files, and symlinks unless explicitly enabled.
+- **Useful limits**: optionally skip files larger than a specified size.
+- **Installable CLI and Python API**: use the `project-code-extractor` command or import the package.
 
 ## Requirements
 
-- Python 3.6+
-- `pyperclip` library
+- Python 3.10 or newer
 
-Install the required library using pip:
+## Installation
+
+Install directly from GitHub:
 
 ```bash
-pip install pyperclip
+pip install git+https://github.com/ArslanIbragimov/ProjectCodeExtractor.git
+```
+
+Or install a local checkout:
+
+```bash
+git clone https://github.com/ArslanIbragimov/ProjectCodeExtractor.git
+cd ProjectCodeExtractor
+pip install .
+```
+
+For an isolated CLI installation, `pipx` also works:
+
+```bash
+pipx install git+https://github.com/ArslanIbragimov/ProjectCodeExtractor.git
 ```
 
 ## Usage
-### Clone the Repository:
-git clone https://github.com/yourusername/ProjectCodeExtractor.git
 
-cd ProjectCodeExtractor
+Extract the current project and copy the result to the clipboard:
 
-### Prepare Your Project Directory:
-Ensure you have .gitignore and excluded_files.txt in your project directory with appropriate patterns to exclude files and directories.
-
-### Run the Script:
-python projcode.py
-
-You will be prompted to enter the path to your project directory.
-
-### Check the Clipboard:
-  
-The script will copy the extracted code content to your clipboard, which you can then paste wherever needed.
-
-## Exclusion Patterns
-
-- **.gitignore: This file should contain patterns for files and directories you want to exclude from extraction.**
-- **excluded_files.txt: This file should also contain patterns for files and directories to be excluded. Both files follow the same pattern matching rules as .gitignore.**
-
-Example file:
-
+```bash
+project-code-extractor
 ```
+
+Extract a specific project:
+
+```bash
+project-code-extractor /path/to/project
+```
+
+Write the result to a file instead of copying it:
+
+```bash
+project-code-extractor /path/to/project --output project.txt
+```
+
+Print to stdout:
+
+```bash
+project-code-extractor /path/to/project --stdout
+```
+
+Write Markdown, including syntax-highlighted code fences:
+
+```bash
+project-code-extractor . --format markdown --output project.md
+```
+
+Copy to the clipboard in addition to another destination:
+
+```bash
+project-code-extractor . --output project.txt --clipboard
+```
+
+After installing the package or its dependencies, the legacy entry point still works from a source checkout and accepts the same arguments:
+
+```bash
+python projcode.py . --stdout
+```
+
+### CLI options
+
+| Option | Description |
+| --- | --- |
+| `project_path` | Project directory to extract. Defaults to the current directory. |
+| `-o`, `--output FILE` | Write rendered output to `FILE`. If the file is inside the project, it is excluded from extraction. |
+| `--stdout` | Write rendered output to stdout. |
+| `--clipboard` | Copy to the clipboard even when `--output` or `--stdout` is used. |
+| `--format text\|markdown` | Select output format. Default: `text`. |
+| `--include-hidden` | Include hidden files and directories. `.git` is always excluded. |
+| `--exclude PATTERN` | Add one gitignore-style exclusion pattern. Can be repeated. |
+| `--exclude-file FILE` | Read additional gitignore-style patterns from `FILE`. Can be repeated. |
+| `--encoding ENCODING` | Encoding used to read text files. Default: `utf-8`. |
+| `--max-file-size SIZE` | Skip files larger than `SIZE`, for example `500KB`, `2MiB`, or `1000000`. |
+| `--follow-symlinks` | Follow symlinked files and directories. Symlinks are skipped by default; directory cycles are detected. |
+| `-v`, `--verbose` | Print each skipped file and its reason to stderr. |
+| `--quiet` | Suppress the extraction summary printed to stderr. |
+| `--version` | Print the installed version. |
+
+If neither `--output` nor `--stdout` is given, the clipboard is the default destination. Be careful with `--include-hidden`: hidden files such as `.env` often contain credentials.
+
+## Exclusion rules
+
+ProjectCodeExtractor reads:
+
+1. The root `.gitignore` and nested `.gitignore` files.
+2. `excluded_files.txt` in the project root.
+3. Patterns passed with `--exclude-file` and `--exclude`.
+
+`.gitignore` files follow Git's pattern rules, including nested overrides and negation:
+
+```gitignore
 # Ignore all log files
 *.log
+
+# Ignore build directories
+build/
+
+# Ignore only the root config file
+/config.local.json
+
+# Re-include one otherwise ignored file
+!important.log
 ```
 
-```
-# Ignore node_modules directory
-node_modules/
-Example excluded_files.txt
-```
+`excluded_files.txt` uses the same gitignore-style syntax. The root `excluded_files.txt` is treated as extractor configuration and is never included in the output; files passed with `--exclude-file` are also excluded when they are inside the project. Custom exclusion rules from `excluded_files.txt`, `--exclude-file`, and `--exclude` are evaluated after `.gitignore` rules, so they take precedence when both match the same file.
 
-```
-# Ignore all markdown files
-*.md
-```
+Additional examples:
 
-```
-# Ignore temp directory
-temp/
+```bash
+# Exclude lock files and generated output
+project-code-extractor . --exclude '*.lock' --exclude 'generated/'
+
+# Load extra patterns from a file outside the project
+project-code-extractor . --exclude-file ~/shared-exclusions.txt
 ```
 
-## Useful Tips and Applications
-### Code Review: **Quickly gather all code for a review session and share it via clipboard.**
-### Documentation: **Easily extract code snippets to include in your documentation.**
-### Backup: **Extract and store important code segments without version control.**
-### Migration: **Prepare code segments for migrating to a new project or repository.**
-### Generative AI Tools: **Use this script to gather code snippets for training or querying generative neural networks.**
-### Stack Overflow Questions: **Simplify the process of collecting and sharing relevant code snippets when asking or answering questions on Stack Overflow.**
+Files skipped because of ignore rules, binary content, size limits, encoding errors, or symlink handling are counted in the final summary. Directories excluded by ignore rules are not traversed.
 
-Contributing
-Feel free to submit issues and pull requests. For major changes, please open an issue first to discuss what you would like to change.
+## Output formats
 
-License
-Distributed under the Apache 2.0 License. See LICENSE for more information.
+### Text
 
-By following the above instructions and utilizing the provided features, you can make the most out of the ProjectCodeExtractor script. Happy coding!
+The default format preserves the original separator-oriented output:
+
+```text
+————
+————————————
+src/app.py:
+
+print("hello")
+————————————
+————
+```
+
+### Markdown
+
+Markdown output is convenient for documentation, review tools, and AI prompts:
+
+````markdown
+## `src/app.py`
+
+```python
+print("hello")
+```
+````
+
+The code fence length is increased automatically when a file itself contains triple backticks.
+
+## Python API
+
+```python
+from project_code_extractor import ProjectCodeExtractor
+
+extractor = ProjectCodeExtractor(
+    "/path/to/project",
+    output_format="markdown",
+    max_file_size=500_000,
+)
+result = extractor.extract_code()
+
+print(result.content)
+print([file.path for file in result.files])
+print([(file.path, file.reason) for file in result.skipped_files])
+```
+
+## Development
+
+Create a virtual environment and install the package in editable mode:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+Run lint and formatting checks:
+
+```bash
+ruff check src tests projcode.py
+ruff format --check src tests projcode.py
+```
+
+Build the package:
+
+```bash
+python -m build
+```
+
+## Contributing
+
+Issues and pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+## License
+
+Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for more information.

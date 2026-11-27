@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ProjectCodeExtractor"
+dynamic = ["version"]
+description = "Extract project source files into one clipboard-, file-, or stdout-ready document"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "Arslan Ibragimov" }]
+keywords = ["code", "extraction", "clipboard", "gitignore", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pathspec>=0.12,<0.13",
+    "pyperclip>=1.8,<2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.0,<2.0",
+    "pytest>=7.0,<9.0",
+    "ruff>=0.6,<1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ArslanIbragimov/ProjectCodeExtractor"
+Issues = "https://github.com/ArslanIbragimov/ProjectCodeExtractor/issues"
+
+[project.scripts]
+project-code-extractor = "project_code_extractor.cli:main"
+projcode = "project_code_extractor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "project_code_extractor.__version__" }
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
