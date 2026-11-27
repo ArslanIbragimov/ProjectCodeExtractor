@@ -6,6 +6,7 @@ import re
 import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import pyperclip
@@ -49,6 +50,23 @@ class ExtractionResult:
 class _IgnoreRuleSet:
     base: str
     spec: GitIgnoreSpec
+
+
+def _compile_gitwildmatch_pattern(pattern_text: str) -> GitWildMatchPattern:
+    with warnings.catch_warnings():
+        # pathspec compiles some valid gitignore character classes to regexes
+        # that trigger this Python implementation warning.
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Possible nested set at position \d+",
+            category=FutureWarning,
+        )
+        return GitWildMatchPattern(pattern_text)
+
+
+@lru_cache(maxsize=1024)
+def _compile_direct_directory_pattern(pattern_text: str) -> GitWildMatchPattern:
+    return _compile_gitwildmatch_pattern(pattern_text)
 
 
 class ProjectCodeExtractor:
@@ -384,15 +402,7 @@ class ProjectCodeExtractor:
         compiled_patterns = []
         for line_number, line in enumerate(lines, start=1):
             try:
-                with warnings.catch_warnings():
-                    # pathspec compiles some valid gitignore character classes to
-                    # regexes that trigger this Python implementation warning.
-                    warnings.filterwarnings(
-                        "ignore",
-                        message=r"Possible nested set at position \d+",
-                        category=FutureWarning,
-                    )
-                    compiled_patterns.append(GitWildMatchPattern(line))
+                compiled_patterns.append(_compile_gitwildmatch_pattern(line))
             except ValueError as exc:
                 warnings.warn(
                     f"Skipping invalid ignore pattern in {source}:{line_number}: {line!r} ({exc})",
@@ -467,17 +477,26 @@ class ProjectCodeExtractor:
         files inside ``build`` that were excluded by independent patterns.
         """
         pattern_text = pattern.pattern
-        if pattern.include is False and pattern_text.startswith("!"):
-            pattern_text = pattern_text[1:]
-        directory_pattern = pattern_text.endswith("/")
+        if pattern_text.endswith("\\ "):
+            # pathspec preserves a trailing escaped space but otherwise strips
+            # whitespace before compiling the pattern.
+            pattern_text = pattern_text.lstrip()
+        else:
+            pattern_text = pattern_text.strip()
 
-        if directory_pattern:
+        if pattern_text.endswith("/"):
             if not is_dir:
                 return False
-            match = pattern.match_file(f"{candidate}/")
-            return match is not None
+            direct_text = pattern_text[:-1]
+            if not direct_text:
+                return False
+            direct_pattern = _compile_direct_directory_pattern(direct_text)
+            if direct_pattern.include is None:
+                return False
+            match = direct_pattern.match_file(candidate)
+        else:
+            match = pattern.match_file(candidate)
 
-        match = pattern.match_file(candidate)
         if match is None:
             return False
         return match.match.groupdict().get("ps_d") is None

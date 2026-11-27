@@ -86,6 +86,39 @@ def test_reincluded_directory_does_not_override_independent_file_exclusions(tmp_
     assert extract_paths(result) == ["build/keep.txt"]
 
 
+def test_reincluded_directory_allows_nested_directories(tmp_path):
+    write_file(tmp_path, ".gitignore", "build/\n!build\n")
+    write_file(tmp_path, "build/assets/style.css")
+    write_file(tmp_path, "build/output.txt")
+
+    result = ProjectCodeExtractor(tmp_path).extract_code()
+
+    assert extract_paths(result) == [
+        "build/assets/style.css",
+        "build/output.txt",
+    ]
+
+
+def test_reincluded_directory_does_not_override_nested_directory_exclusions(tmp_path):
+    write_file(tmp_path, ".gitignore", "**/assets/\nbuild/\n!build/\n")
+    write_file(tmp_path, "build/assets/style.css")
+    write_file(tmp_path, "build/keep.txt")
+
+    result = ProjectCodeExtractor(tmp_path).extract_code()
+
+    assert extract_paths(result) == ["build/keep.txt"]
+
+
+def test_trailing_space_after_directory_marker_is_ignored(tmp_path):
+    write_file(tmp_path, ".gitignore", "build/ \n")
+    write_file(tmp_path, "build/output.txt")
+    write_file(tmp_path, "keep.txt")
+
+    result = ProjectCodeExtractor(tmp_path).extract_code()
+
+    assert extract_paths(result) == ["keep.txt"]
+
+
 def test_double_star_contents_pattern_does_not_exclude_the_directory_itself(tmp_path):
     write_file(tmp_path, ".gitignore", "**/generated/**\n!*.py\n")
     write_file(tmp_path, "generated/a.py")
