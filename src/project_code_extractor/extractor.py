@@ -417,7 +417,7 @@ class ProjectCodeExtractor:
         for line_number, line in enumerate(lines, start=1):
             try:
                 compiled_patterns.append(_compile_gitwildmatch_pattern(line))
-            except ValueError as exc:
+            except (ValueError, re.error) as exc:
                 warnings.warn(
                     f"Skipping invalid ignore pattern in {source}:{line_number}: {line!r} ({exc})",
                     UserWarning,

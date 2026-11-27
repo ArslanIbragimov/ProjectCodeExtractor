@@ -191,6 +191,17 @@ def test_invalid_gitignore_pattern_is_skipped_with_warning(tmp_path):
     assert extract_paths(result) == ["notes.txt"]
 
 
+def test_invalid_gitignore_character_range_is_skipped_with_warning(tmp_path):
+    write_file(tmp_path, ".gitignore", "[z-a].txt\n*.py\n")
+    write_file(tmp_path, "app.py")
+    write_file(tmp_path, "notes.txt")
+
+    with pytest.warns(UserWarning, match="Skipping invalid ignore pattern"):
+        result = ProjectCodeExtractor(tmp_path).extract_code()
+
+    assert extract_paths(result) == ["notes.txt"]
+
+
 def test_custom_exclusion_file_overrides_gitignore_negations(tmp_path):
     write_file(tmp_path, ".gitignore", "*.txt\n!keep.txt\n")
     write_file(tmp_path, "excluded_files.txt", "keep.txt\n")
