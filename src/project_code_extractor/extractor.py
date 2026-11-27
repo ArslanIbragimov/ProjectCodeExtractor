@@ -331,22 +331,36 @@ class ProjectCodeExtractor:
         return result
 
     def _walk_project(self) -> Iterator[tuple[str, list[str], list[str]]]:
-        visited_directories: set[tuple[int, int]] = set()
-        for root, dirs, files in os.walk(
-            self.project_path, topdown=True, followlinks=self.follow_symlinks
-        ):
-            if self.follow_symlinks:
-                try:
-                    stat_result = os.stat(root)
-                except OSError:
-                    stat_result = None
+        if not self.follow_symlinks:
+            yield from os.walk(self.project_path, topdown=True, followlinks=False)
+            return
 
-                if stat_result is not None:
-                    directory_key = (stat_result.st_dev, stat_result.st_ino)
-                    if directory_key in visited_directories:
-                        dirs[:] = []
-                        continue
-                    visited_directories.add(directory_key)
+        ancestor_chains: dict[str, tuple[tuple[int, int], ...]] = {}
+        for root, dirs, files in os.walk(
+            self.project_path, topdown=True, followlinks=True
+        ):
+            normalized_root = os.path.normpath(root)
+            ancestor_chain = ancestor_chains.pop(normalized_root, ())
+
+            try:
+                stat_result = os.stat(root)
+            except OSError:
+                stat_result = None
+
+            if stat_result is not None:
+                directory_key = (stat_result.st_dev, stat_result.st_ino)
+                if directory_key in ancestor_chain:
+                    dirs[:] = []
+                    continue
+                ancestor_chain = (*ancestor_chain, directory_key)
+
+            # Track ancestors independently for each logical path. A symlinked
+            # directory may alias another part of the tree without hiding that
+            # part, while a link back to one of its own ancestors is still a
+            # cycle and must not be entered.
+            for dirname in dirs:
+                child_path = os.path.normpath(os.path.join(root, dirname))
+                ancestor_chains[child_path] = ancestor_chain
             yield root, dirs, files
 
     def _relative_excluded_paths(

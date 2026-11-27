@@ -252,6 +252,36 @@ def test_symlinked_files_are_skipped_unless_enabled(tmp_path):
     assert extract_paths(follow_result) == ["linked.py", "target.py"]
 
 
+def test_symlinked_directory_does_not_hide_the_real_tree(tmp_path):
+    write_file(tmp_path, ".gitignore", "a-link/secret.py\n")
+    write_file(tmp_path, "z-real/public.py")
+    write_file(tmp_path, "z-real/secret.py")
+    try:
+        os.symlink(tmp_path / "z-real", tmp_path / "a-link")
+    except OSError as exc:
+        pytest.skip(f"symlinks are not available: {exc}")
+
+    result = ProjectCodeExtractor(tmp_path, follow_symlinks=True).extract_code()
+
+    assert extract_paths(result) == [
+        "a-link/public.py",
+        "z-real/public.py",
+        "z-real/secret.py",
+    ]
+
+
+def test_directory_symlink_cycles_are_pruned(tmp_path):
+    write_file(tmp_path, "a.txt")
+    try:
+        os.symlink(tmp_path, tmp_path / "loop")
+    except OSError as exc:
+        pytest.skip(f"symlinks are not available: {exc}")
+
+    result = ProjectCodeExtractor(tmp_path, follow_symlinks=True).extract_code()
+
+    assert extract_paths(result) == ["a.txt"]
+
+
 def test_max_file_size_skips_large_files(tmp_path):
     write_file(tmp_path, "small.txt", "ok")
     write_file(tmp_path, "large.txt", "x" * 100)
