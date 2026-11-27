@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import pyperclip
 import pytest
@@ -41,6 +42,23 @@ def test_output_file_inside_project_is_not_extracted(tmp_path, monkeypatch):
     assert "app.py" in rendered
     assert "extracted.txt:" not in rendered
     assert "stale extraction output" not in rendered
+
+
+def test_unencodable_output_does_not_truncate_existing_file(tmp_path, capsys):
+    if os.name != "posix":
+        pytest.skip("non-UTF-8 filenames require a POSIX filesystem")
+    bad_path = os.path.join(os.fsencode(tmp_path), b"bad\xff.py")
+    fd = os.open(bad_path, os.O_WRONLY | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "wb") as file:
+        file.write(b"print('bad')\n")
+    output_path = tmp_path.parent / "extracted.txt"
+    output_path.write_text("previous output\n", encoding="utf-8")
+
+    exit_code = main([str(tmp_path), "--output", str(output_path), "--quiet"])
+
+    assert exit_code == 1
+    assert output_path.read_text(encoding="utf-8") == "previous output\n"
+    assert "cannot encode output as UTF-8" in capsys.readouterr().err
 
 
 def test_stdout_destination_does_not_copy_implicitly(tmp_path, monkeypatch, capsys):

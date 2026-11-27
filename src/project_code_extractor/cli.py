@@ -186,7 +186,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.output is not None:
         output_path = args.output.expanduser()
         try:
-            output_path.write_text(result.content, encoding="utf-8")
+            output_data = result.content.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            print(f"error: cannot encode output as UTF-8: {exc}", file=sys.stderr)
+            return 1
+        try:
+            output_path.write_bytes(output_data)
         except OSError as exc:
             print(
                 f"error: cannot write output file {output_path}: {exc}", file=sys.stderr
